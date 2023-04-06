@@ -33,12 +33,6 @@
 #include FT_COLOR_H
 #endif
 
-#define KEEP_PY_UNICODE
-
-#if !defined(FT_LOAD_TARGET_MONO)
-#define FT_LOAD_TARGET_MONO FT_LOAD_MONOCHROME
-#endif
-
 /* -------------------------------------------------------------------- */
 /* error table */
 
@@ -420,11 +414,9 @@ text_layout_fallback(
     if (mask) {
         load_flags |= FT_LOAD_TARGET_MONO;
     }
-#ifdef FT_LOAD_COLOR
     if (color) {
         load_flags |= FT_LOAD_COLOR;
     }
-#endif
     for (i = 0; font_getchar(string, i, &ch); i++) {
         (*glyph_info)[i].index = FT_Get_Char_Index(self->face, ch);
         error = FT_Load_Glyph(self->face, (*glyph_info)[i].index, load_flags);
@@ -581,11 +573,9 @@ font_getsize(FontObject *self, PyObject *args) {
     if (mask) {
         load_flags |= FT_LOAD_TARGET_MONO;
     }
-#ifdef FT_LOAD_COLOR
     if (color) {
         load_flags |= FT_LOAD_COLOR;
     }
-#endif
 
     /*
      * text bounds are given by:
@@ -844,11 +834,9 @@ font_render(FontObject *self, PyObject *args) {
     if (mask) {
         load_flags |= FT_LOAD_TARGET_MONO;
     }
-#ifdef FT_LOAD_COLOR
     if (color) {
         load_flags |= FT_LOAD_COLOR;
     }
-#endif
 
     /*
      * calculate x_min and y_max
@@ -958,13 +946,11 @@ font_render(FontObject *self, PyObject *args) {
                 /* bitmap is now FT_PIXEL_MODE_GRAY, fall through */
             case FT_PIXEL_MODE_GRAY:
                 break;
-#ifdef FT_LOAD_COLOR
             case FT_PIXEL_MODE_BGRA:
                 if (color) {
                     break;
                 }
                 /* we didn't ask for color, fall through to default */
-#endif
             default:
                 PyErr_SetString(PyExc_OSError, "unsupported bitmap pixel mode");
                 goto glyph_error;
@@ -995,7 +981,6 @@ font_render(FontObject *self, PyObject *args) {
                 } else {
                     target = im->image8[yy] + xx;
                 }
-#ifdef FT_LOAD_COLOR
                 if (color && bitmap.pixel_mode == FT_PIXEL_MODE_BGRA) {
                     /* paste color glyph */
                     for (k = x0; k < x1; k++) {
@@ -1010,9 +995,7 @@ font_render(FontObject *self, PyObject *args) {
                             target[k * 4 + 3] = source[k * 4 + 3];
                         }
                     }
-                } else
-#endif
-                    if (bitmap.pixel_mode == FT_PIXEL_MODE_GRAY) {
+                } else if (bitmap.pixel_mode == FT_PIXEL_MODE_GRAY) {
                     if (color) {
                         unsigned char *ink = (unsigned char *)&foreground_ink;
                         for (k = x0; k < x1; k++) {
@@ -1082,11 +1065,17 @@ font_getvarnames(FontObject *self) {
 
     num_namedstyles = master->num_namedstyles;
     list_names = PyList_New(num_namedstyles);
+    if (list_names == NULL) {
+        FT_Done_MM_Var(library, master);
+        return NULL;
+    }
 
     name_count = FT_Get_Sfnt_Name_Count(self->face);
     for (i = 0; i < name_count; i++) {
         error = FT_Get_Sfnt_Name(self->face, i, &name);
         if (error) {
+            Py_DECREF(list_names);
+            FT_Done_MM_Var(library, master);
             return geterror(error);
         }
 
@@ -1125,10 +1114,19 @@ font_getvaraxes(FontObject *self) {
     name_count = FT_Get_Sfnt_Name_Count(self->face);
 
     list_axes = PyList_New(num_axis);
+    if (list_axes == NULL) {
+        FT_Done_MM_Var(library, master);
+        return NULL;
+    }
     for (i = 0; i < num_axis; i++) {
         axis = master->axis[i];
 
         list_axis = PyDict_New();
+        if (list_axis == NULL) {
+            Py_DECREF(list_axes);
+            FT_Done_MM_Var(library, master);
+            return NULL;
+        }
         PyObject *minimum = PyLong_FromLong(axis.minimum / 65536);
         PyDict_SetItemString(list_axis, "minimum", minimum ? minimum : Py_None);
         Py_XDECREF(minimum);
@@ -1144,6 +1142,9 @@ font_getvaraxes(FontObject *self) {
         for (j = 0; j < name_count; j++) {
             error = FT_Get_Sfnt_Name(self->face, j, &name);
             if (error) {
+                Py_DECREF(list_axis);
+                Py_DECREF(list_axes);
+                FT_Done_MM_Var(library, master);
                 return geterror(error);
             }
 

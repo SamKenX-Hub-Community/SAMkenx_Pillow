@@ -502,12 +502,9 @@ getink(PyObject *color, Imaging im, char *ink) {
        be cast to either UINT8 or INT32 */
 
     int rIsInt = 0;
-    int tupleSize;
-    if (PyTuple_Check(color)) {
-        tupleSize = PyTuple_GET_SIZE(color);
-        if (tupleSize == 1) {
-            color = PyTuple_GetItem(color, 0);
-        }
+    int tupleSize = PyTuple_Check(color) ? PyTuple_GET_SIZE(color) : -1;
+    if (tupleSize == 1) {
+        color = PyTuple_GetItem(color, 0);
     }
     if (im->type == IMAGING_TYPE_UINT8 || im->type == IMAGING_TYPE_INT32 ||
         im->type == IMAGING_TYPE_SPECIAL) {
@@ -521,7 +518,7 @@ getink(PyObject *color, Imaging im, char *ink) {
             PyErr_SetString(
                 PyExc_TypeError, "color must be int or single-element tuple");
             return NULL;
-        } else if (!PyTuple_Check(color)) {
+        } else if (tupleSize == -1) {
             PyErr_SetString(PyExc_TypeError, "color must be int or tuple");
             return NULL;
         }
@@ -1285,6 +1282,10 @@ _histogram(ImagingObject *self, PyObject *args) {
 
     /* Build an integer list containing the histogram */
     list = PyList_New(h->bands * 256);
+    if (list == NULL) {
+        ImagingHistogramDelete(h);
+        return NULL;
+    }
     for (i = 0; i < h->bands * 256; i++) {
         PyObject *item;
         item = PyLong_FromLong(h->histogram[i]);
@@ -2190,6 +2191,10 @@ _getcolors(ImagingObject *self, PyObject *args) {
         Py_INCREF(out);
     } else {
         out = PyList_New(colors);
+        if (out == NULL) {
+            free(items);
+            return NULL;
+        }
         for (i = 0; i < colors; i++) {
             ImagingColorItem *v = &items[i];
             PyObject *item = Py_BuildValue(
@@ -4361,6 +4366,7 @@ PyInit__imaging(void) {
     m = PyModule_Create(&module_def);
 
     if (setup_module(m) < 0) {
+        Py_DECREF(m);
         return NULL;
     }
 

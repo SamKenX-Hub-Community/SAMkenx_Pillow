@@ -2,8 +2,23 @@
 Changelog (Pillow)
 ==================
 
-9.5.0 (unreleased)
+10.0.0 (unreleased)
+-------------------
+
+- Drop support for soon-EOL Python 3.7 #7058
+  [hugovk, radarhere]
+
+9.5.0 (2023-04-01)
 ------------------
+
+- Added ImageSourceData to TAGS_V2 #7053
+  [radarhere]
+
+- Clear PPM half token after use #7052
+  [radarhere]
+
+- Removed absolute path to ldconfig #7044
+  [radarhere]
 
 - Support custom comments and PLT markers when saving JPEG2000 images #6903
   [joshware, radarhere, hugovk]
