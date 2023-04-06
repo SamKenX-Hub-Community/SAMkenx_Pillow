@@ -273,9 +273,7 @@ def _pkg_config(name):
             )[::2][1:]
             cflags = re.split(
                 r"(^|\s+)-I",
-                subprocess.check_output(command_cflags, stderr=stderr)
-                .decode("utf8")
-                .strip(),
+                subprocess.check_output(command_cflags).decode("utf8").strip(),
             )[::2][1:]
             return libs, cflags
         except Exception:
@@ -683,10 +681,6 @@ class pil_build_ext(build_ext):
                 # Add the directory to the include path so we can include
                 # <openjpeg.h> rather than having to cope with the versioned
                 # include path
-                # FIXME (melvyn-sopacua):
-                # At this point it's possible that best_path is already in
-                # self.compiler.include_dirs. Should investigate how that is
-                # possible.
                 _add_directory(self.compiler.include_dirs, best_path, 0)
                 feature.jpeg2000 = "openjp2"
                 feature.openjpeg_version = ".".join(str(x) for x in best_version)

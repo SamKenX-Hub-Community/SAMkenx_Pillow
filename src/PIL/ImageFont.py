@@ -54,17 +54,12 @@ def __getattr__(name):
     raise AttributeError(msg)
 
 
-class _ImagingFtNotInstalled:
-    # module placeholder
-    def __getattr__(self, id):
-        msg = "The _imagingft C module is not installed"
-        raise ImportError(msg)
-
-
 try:
     from . import _imagingft as core
-except ImportError:
-    core = _ImagingFtNotInstalled()
+except ImportError as ex:
+    from ._util import DeferredError
+
+    core = DeferredError(ex)
 
 
 _UNSPECIFIED = object()
@@ -767,18 +762,19 @@ class FreeTypeFont:
         offset = offset[0] - stroke_width, offset[1] - stroke_width
         Image._decompression_bomb_check(size)
         im = fill("RGBA" if mode == "RGBA" else "L", size, 0)
-        self.font.render(
-            text,
-            im.id,
-            mode,
-            direction,
-            features,
-            language,
-            stroke_width,
-            ink,
-            start[0],
-            start[1],
-        )
+        if min(size):
+            self.font.render(
+                text,
+                im.id,
+                mode,
+                direction,
+                features,
+                language,
+                stroke_width,
+                ink,
+                start[0],
+                start[1],
+            )
         return im, offset
 
     def font_variant(
